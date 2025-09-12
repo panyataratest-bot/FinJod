@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>FIN-ED · User</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *{ box-sizing:border-box }
+    :root{
+      --bg:#1e1e1e; --bg2:#242424; --panel:#2a2a2a; --line:#3a3a3a; --muted:#bfbfbf; --text:#f1f1f1;
+      --primary:#ff2e80; --primary-2:#e91e63; --blue:#6c8cff; --green:#00c896; --danger:#ff4d4f; --warning:#ffb020; --cyan:#2dd4bf;
+      --space: clamp(.9rem, 2.6vw, 1.25rem);
+    }
+    html,body{ height:100% }
+    body{
+      margin:0; padding:var(--space);
+      padding-bottom:calc(var(--space) + env(safe-area-inset-bottom,0px));
+      font-family:'Kanit',sans-serif; background:var(--bg); color:var(--text)
+    }
+    h1{ text-align:center; font-size:clamp(1.3rem,4.6vw,2rem); color:var(--primary); margin:0 0 1rem }
+    .container{ width:min(1140px,100%); margin:auto; background:var(--panel);
+      padding:clamp(.9rem,2.8vw,1.6rem); border-radius:24px; box-shadow:0 12px 30px rgba(0,0,0,.5) }
+
+    .card{ background:var(--bg2); border:1px solid var(--line); border-radius:18px; padding:clamp(.9rem,2.6vw,1.4rem);
+      margin-bottom:var(--space); overflow:hidden; }
+    .row{ display:flex; flex-wrap:wrap; gap:clamp(.8rem,2vw,1rem); margin-bottom:clamp(.6rem,2vw,1rem); align-items:flex-start }
+    .col{ flex:1 1 46%; display:flex; flex-direction:column; gap:.45rem; min-width:220px }
+
+    label{ color:var(--muted); font-size:.95rem }
+    input, select, button, textarea{ padding:1rem 1.1rem; font-size:16px; border-radius:14px; border:1px solid #555; background:#1e1e1e; color:#fff; min-height:46px }
+    textarea{ min-height:90px; resize:vertical }
+    input[type=number]{ text-align:right; -moz-appearance:textfield }
+    input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+    button{ background:var(--primary); border:none; font-weight:700; cursor:pointer; transition:background .2s; padding:.9rem 1.15rem; min-height:46px; }
+    @media (hover:hover) and (pointer:fine){ button:hover{ background:var(--primary-2) } }
+    button:disabled{ opacity:.65; cursor:not-allowed }
+    .btn-ghost{ background:#3a3a3a } .btn-green{ background:var(--green) } .btn-blue{ background:var(--blue) } .btn-danger{ background:var(--danger) } .btn-cyan{ background:var(--cyan); color:#07302b }
+
+    .tabs{ display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:var(--space) }
+    .tabbtn{ padding:.85rem 1.15rem; border-radius:14px; border:1px solid #444; background:#1f1f1f; color:#ddd; cursor:pointer; min-height:46px }
+    .tabbtn.active{ background:var(--primary); border-color:var(--primary); color:#fff; font-weight:700 }
+    .section{ display:none } .section.active{ display:block }
+
+    .chip{ display:inline-flex; align-items:center; gap:.4rem; padding:.4rem .7rem; border:1px solid var(--line); border-radius:999px; font-size:.92rem; color:#ddd }
+    .muted{ color:var(--muted) } .right{ text-align:right }
+
+    .chart-wrap{ height:260px; width:100% } .chart-wrap canvas{ width:100% !important; height:100% !important; display:block }
+    @media(max-width:980px){ .chart-wrap{ height:220px } }
+    @media(max-width:768px){ .chart-wrap{ height:200px } }
+
+    .table-viewport{ max-height:420px; overflow:auto; border-radius:12px; border:1px solid var(--line); -webkit-overflow-scrolling:touch; }
+    table{ width:100%; border-collapse:collapse; table-layout:fixed; font-size:.98rem }
+    th,td{ border-bottom:1px solid var(--line); padding:.85rem .55rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+    th{ color:var(--muted); font-weight:600; text-align:left; position:sticky; top:0; background:var(--bg2); z-index:1 }
+    .table-viewport tbody tr:hover{ background:#2f2f2f }
+
+    .kpi{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:clamp(.8rem,2vw,1rem); margin-bottom:var(--space) }
+    .kpi .card{ display:flex; flex-direction:column; gap:.4rem; min-height:92px }
+
+    /* toast + overlay */
+    #toast{ position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:#333; color:#fff; padding:.8rem 1.2rem; border-radius:12px; opacity:0; transition:.35s; pointer-events:none; z-index:120 }
+    #overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:110 }
+    #overlay.show{ display:flex }
+    .spinner{ width:62px; height:62px; border:6px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:spin 1s linear infinite }
+    @keyframes spin{ to{ transform:rotate(360deg) } }
+    .hide{ display:none }
+
+    .range-inline{ display:grid; grid-template-columns: 180px auto 180px auto auto auto; align-items:end; gap:.6rem; }
+    .range-inline .to-sep{ color:var(--muted); align-self:center; padding:0 .25rem }
+    .range-inline input[type="date"]{ min-width:170px }
+
+    @media(max-width:860px){
+      .col{ flex:1 1 100% }
+      .range-inline{ grid-template-columns:1fr 1fr; grid-auto-rows:auto }
+      .range-inline .to-sep{ display:none }
+      .range-inline input[type="date"]{ min-width:0; grid-column:1 / -1 }
+      .range-inline .segbtn, .range-inline .btn-blue{ width:100% }
+      .table-viewport{ max-height:none; overflow-y:visible; overflow-x:auto }
+      table{ min-width:560px; table-layout:auto; font-size:.95rem }
+      th{ position:static }
+      td:nth-child(3),td:nth-child(5){ white-space:normal }
+      td:nth-child(4){ white-space:nowrap }
+    }
+
+    .bar-track{ height:10px; background:#3a3a3a; border-radius:999px; overflow:hidden }
+    .bar-fill{ height:100%; width:0% }
+
+    /* modal a11y */
+    #modal.hide{ display:none }
+    #modal{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.5); z-index:130 }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>FIN-ED · User</h1>
+
+    <!-- Login -->
+    <div id="loginBox" class="card">
+      <div class="row">
+        <div class="col">
+          <label for="inpUser">User ID</label>
+          <input id="inpUser" placeholder="กรอกชื่อผู้ใช้งาน" autocomplete="username">
+        </div>
+        <div class="col">
+          <label for="inpPin">PIN</label>
+          <input id="inpPin" type="password" placeholder="กรอกรหัสผ่าน" autocomplete="current-password">
+        </div>
+      </div>
+      <div class="row" style="gap:.8rem">
+        <button id="btnLogin" class="btn-green">เข้าสู่ระบบ 🚀</button>
+        <span id="loginMsg" class="muted" style="align-self:center"></span>
+      </div>
+      <div class="muted" style="margin-top:.35rem">* ติดต่อพี่เลี้ยงเพื่อรับ User ID และ PIN</div>
+    </div>
+
+    <!-- App -->
+    <div id="app" class="hide">
+      <div class="row" style="align-items:center; margin-top:.25rem">
+        <div class="muted">👋 สวัสดี <b id="who">—</b></div>
+        <div style="margin-left:auto; display:flex; gap:.6rem; flex-wrap:wrap">
+          <button id="btnRefresh" class="btn-blue">รีเฟรช 🔄</button>
+          <button id="btnLogout" class="btn-ghost">ออกจากระบบ 🚪</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs" role="tablist" aria-label="เมนูหลัก">
+        <button class="tabbtn active" role="tab" aria-selected="true"  aria-controls="tab-add"  data-tab="add">บันทึก ✍️</button>
+        <button class="tabbtn"        role="tab" aria-selected="false" aria-controls="tab-dash" data-tab="dash">แดชบอร์ด 📊</button>
+        <button class="tabbtn"        role="tab" aria-selected="false" aria-controls="tab-list" data-tab="list">รายการ 📃</button>
+        <button class="tabbtn"        role="tab" aria-selected="false" aria-controls="tab-debt" data-tab="debt">หนี้ 💳</button>
+      </div>
+
+      <!-- ADD -->
+      <section id="tab-add" class="section active card">
+        <div class="row">
+          <div class="col">
+            <label for="txDate">วันที่ 📅</label>
+            <input id="txDate" type="date">
+          </div>
+          <div class="col">
+            <label for="txType">ประเภท</label>
+            <select id="txType">
+              <option value="income">รายรับ</option>
+              <option value="expense" selected>รายจ่าย</option>
+              <option value="saving">ออมเงิน</option>
+              <option value="debt_pay">จ่ายหนี้</option>
+              <option value="debt_borrow">กู้หนี้</option>
+            </select>
+          </div>
+          <div class="col" id="colCat">
+            <label for="txCat">หมวด</label>
+            <select id="txCat"></select>
+          </div>
+          <div class="col" id="colDebt" style="display:none">
+            <label for="txDebt">เจ้าหนี้</label>
+            <select id="txDebt"></select>
+          </div>
+          <div class="col">
+            <label for="txAmount">จำนวน (บาท)</label>
+            <input id="txAmount" type="number" step="0.01" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col" style="flex:1 1 100%">
+            <label for="txNote">หมายเหตุ</label>
+            <input id="txNote" placeholder="ใส่รายละเอียดเพิ่มเติม (ถ้ามี)">
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnSave" class="btn-green">บันทึก ✅</button>
+          <label style="display:flex; align-items:center; gap:.5rem">
+            <input id="keepSwitch" type="checkbox" style="width:18px; height:18px"> <span class="muted">บันทึกแล้วคงค่าวันที่/ประเภทไว้</span>
+          </label>
+          <span id="txMsg" class="muted" style="margin-left:auto"></span>
+        </div>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section id="tab-dash" class="section card">
+        <div class="row">
+          <div class="col" style="min-width:220px">
+            <label>ช่วงวันที่</label>
+            <div class="range-inline">
+              <input id="fFrom" type="date">
+              <span class="to-sep">ถึง</span>
+              <input id="fTo" type="date">
+              <button class="tabbtn segbtn" id="btnToday">วันนี้</button>
+              <button class="tabbtn segbtn" id="btnMonth">เดือนนี้</button>
+              <button class="btn-blue" id="btnRangeRefresh">รีเฟรช</button>
+            </div>
+            <div style="margin-top:.5rem"><span class="chip">กำลังดู: <span id="rangeBadge">กำหนดเอง</span></span></div>
+          </div>
+        </div>
+
+        <!-- KPI -->
+        <div class="kpi" id="kpiWrap">
+          <div class="card"><div class="muted">รายรับรวม</div><div id="sumIncome" style="font-size:1.6rem;font-weight:700">—</div></div>
+          <div class="card"><div class="muted">รายจ่ายรวม</div><div id="sumExpense" style="font-size:1.6rem;font-weight:700">—</div></div>
+          <div class="card"><div class="muted">จ่ายหนี้รวม</div><div id="sumDebtPay" style="font-size:1.6rem;font-weight:700">—</div></div>
+          <div class="card"><div class="muted">ออมเงินสุทธิ (ฝาก−ถอน)</div><div id="sumSaving" style="font-size:1.6rem;font-weight:700">—</div></div>
+          <div class="card"><div class="muted">คงเหลือสุทธิ</div><div id="sumNet" style="font-size:1.6rem;font-weight:700">—</div></div>
+        </div>
+
+        <!-- Budget/Goal -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="row">
+            <div class="col">
+              <div class="muted">งบรายจ่ายรวม (เดือนนี้)</div>
+              <input id="inpBudget" type="number" step="0.01" placeholder="เช่น 15000">
+              <div class="bar-track"><div id="budgetBar" class="bar-fill" style="background:linear-gradient(90deg,#6c8cff,#ffb020,#ff4d4f)"></div></div>
+              <div class="muted" id="budgetHint" style="margin-top:.3rem">—</div>
+            </div>
+            <div class="col">
+              <div class="muted">เป้าออมสุทธิ (เดือนนี้)</div>
+              <input id="inpSavingGoal" type="number" step="0.01" placeholder="เช่น 3000">
+              <div class="bar-track"><div id="savingBar" class="bar-fill" style="background:linear-gradient(90deg,#2dd4bf,#00c896)"></div></div>
+              <div class="muted" id="savingHint" style="margin-top:.3rem">—</div>
+            </div>
+          </div>
+          <div class="row"><button id="btnSaveBudget" class="btn-cyan">บันทึกงบ/เป้า 💾</button></div>
+          <div class="muted">* ใช้คีย์ __BUDGET_OVERALL__ และ __SAVING_GOAL__ สำหรับเดือนที่เลือก</div>
+        </div>
+
+        <div class="row">
+          <div class="card" style="flex:1 1 48%">
+            <div class="muted" style="margin-bottom:.5rem">รายจ่ายตามหมวด</div>
+            <div id="noDataExp" class="muted hide">ยังไม่มีข้อมูลในช่วงนี้</div>
+            <div class="chart-wrap"><canvas id="chartExp"></canvas></div>
+          </div>
+          <div class="card" style="flex:1 1 48%">
+            <div class="muted" style="margin-bottom:.5rem">กระแสเงินสด (รายวัน & สะสม)</div>
+            <div id="noDataFlow" class="muted hide">ยังไม่มีข้อมูลในช่วงนี้</div>
+            <div class="chart-wrap"><canvas id="chartFlow"></canvas></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="card" style="flex:1 1 100%">
+            <div class="muted" style="margin-bottom:.5rem">เงินออมสุทธิสะสม (ฝาก − ถอน)</div>
+            <div id="noDataSav" class="muted hide">ยังไม่มีข้อมูลในช่วงนี้</div>
+            <div class="chart-wrap"><canvas id="chartSavCum"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Debt (สรุป/ประวัติ) -->
+        <div class="row" id="debtCards">
+          <div class="card" style="flex:1 1 100%">
+            <div style="display:flex; gap:.6rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap">
+              <div class="muted">หนี้</div>
+              <div style="margin-left:auto; display:flex; gap:.4rem; flex-wrap:wrap">
+                <select id="debtViewMode" class="tabbtn" style="padding:.55rem .8rem; min-height:auto">
+                  <option value="snapshot">ยอดคงเหลือปัจจุบันตามเจ้าหนี้</option>
+                  <option value="history">ประวัติการจ่ายหนี้ (เส้น: ดอก/ต้น)</option>
+                </select>
+                <select id="debtFilter" class="tabbtn" style="padding:.55rem .8rem; min-height:auto">
+                  <option value="">เจ้าหนี้: ทั้งหมด</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="noDebt" class="muted hide">ยังไม่มีข้อมูลหนี้</div>
+            <div class="chart-wrap"><canvas id="chartDebt"></canvas></div>
+            <div id="debtForecast" class="muted" style="margin-top:.4rem; display:none">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LIST -->
+      <section id="tab-list" class="section card">
+        <div class="muted" style="margin-bottom:.5rem">รายการในช่วงวันที่ (อิงจากแดชบอร์ด)</div>
+        <div class="table-viewport">
+          <table>
+            <thead><tr>
+              <th style="width:110px">วันที่</th>
+              <th style="width:160px">ประเภท</th>
+              <th>หมวด</th>
+              <th class="right" style="width:130px">จำนวน</th>
+              <th>หมายเหตุ</th>
+              <th style="width:96px">จัดการ</th>
+            </tr></thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
+        <div id="emptyList" class="muted" style="margin-top:.5rem; display:none">ยังไม่มีรายการ</div>
+      </section>
+
+      <!-- DEBT Registry -->
+      <section id="tab-debt" class="section card">
+        <div class="row">
+          <div class="col">
+            <label for="debtName">ชื่อเจ้าหนี้</label>
+            <input id="debtName" placeholder="เช่น บัตร A / เพื่อน / สหกรณ์">
+          </div>
+          <div class="col">
+            <label for="debtAPR">อัตราดอกเบี้ย (% ต่อปี)</label>
+            <input id="debtAPR" type="number" step="0.01" placeholder="เช่น 18">
+          </div>
+          <div class="col">
+            <label for="debtPrincipal">เงินต้นเริ่มต้น (บาท)</label>
+            <input id="debtPrincipal" type="number" step="0.01" placeholder="เช่น 10000">
+          </div>
+          <div class="col">
+            <label for="debtStart">วันที่เริ่มคิดดอก</label>
+            <input id="debtStart" type="date">
+          </div>
+        </div>
+        <div class="row">
+          <button id="btnDebtAdd" class="btn-blue">+ เพิ่มเจ้าหนี้</button>
+        </div>
+
+        <div class="row" style="margin-top:.25rem">
+          <div class="muted">รายการเจ้าหนี้ของคุณ</div>
+        </div>
+        <div class="table-viewport">
+          <table>
+            <thead><tr>
+              <th>ชื่อ</th>
+              <th class="right" style="width:130px">ดอก/ปี (%)</th>
+              <th class="right" style="width:160px">เงินต้นคงเหลือ (บาท)</th>
+              <th class="right" style="width:160px">ดอกค้าง (บาท)</th>
+              <th style="width:120px">สถานะ</th>
+              <th style="width:160px">จัดการ</th>
+            </tr></thead>
+            <tbody id="tblDebt"></tbody>
+          </table>
+        </div>
+        <div id="emptyDebt" class="muted" style="margin-top:.5rem; display:none">ยังไม่มีเจ้าหนี้</div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" aria-live="polite" role="status">แจ้งเตือน</div>
+  <div id="overlay"><div class="spinner" aria-hidden="true"></div></div>
+
+  <!-- Modal -->
+  <div id="modal" class="hide" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div id="modalCard" class="card" style="width:min(560px,96%);">
+      <div id="modalTitle" style="font-weight:700;margin-bottom:.6rem">แก้ไข</div>
+      <div id="modalBody"></div>
+      <div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:.8rem">
+        <button id="btnModalCancel" class="btn-ghost">ยกเลิก</button>
+        <button id="btnModalSave" class="btn-cyan">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ===== CONFIG ===== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbznJMWIaEVx9NQurW2PO38SUQPSRoYFzSmhZCjNUIDJEFRLv1JmDC2XsQCoBUIlAbm8Uw/exec';
+const BUD_CAT_OVERALL   = '__BUDGET_OVERALL__';
+const BUD_CAT_SAVE_GOAL = '__SAVING_GOAL__';
+
+/* ===== STATE ===== */
+let token = localStorage.getItem('fin_token') || '';
+let displayName = localStorage.getItem('fin_name') || '';
+let lastItems = [];
+let withdrawIncomeIds = new Set(); // รายรับที่ถือว่าเป็นถอนออม
+let debtPayCatIds = new Set();     // หมวด "จ่ายหนี้"
+let debts = [];                    // จาก GAS: debts/list
+let chartDebt=null, chartExp=null, chartFlow=null, chartSavCum=null;
+let debtChartMode = 'snapshot';
+
+/* ===== HELPERS ===== */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const fmt = n => Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2, maximumFractionDigits:2});
+const safe = v => (v==null ? '' : String(v));
+const esc = (s='') => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const escs = v => esc(safe(v));
+function toast(msg, ok=true){ const el=$('#toast'); el.textContent=msg; el.style.background=ok?'#00c896':'#d63031'; el.style.opacity='1'; setTimeout(()=>el.style.opacity='0',2600); }
+let _overlayN = 0;
+function showOverlay(on){ _overlayN += on ? 1 : -1; if (_overlayN<0) _overlayN=0; $('#overlay').classList.toggle('show', _overlayN>0); }
+const toYMD = d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const todayISO = ()=> toYMD(new Date());
+const monthBoundsOf = d=>({ start: toYMD(new Date(d.getFullYear(), d.getMonth(), 1)), end: toYMD(new Date(d.getFullYear(), d.getMonth()+1, 0)) });
+const yyyyMmOf = d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+const sum = (arr, pick) => arr.reduce((s,x)=> s+(pick(x)||0), 0);
+const groupBy = (arr, key) => arr.reduce((a,x)=> ((a[key(x)] = a[key(x)]||[]).push(x),a),{});
+const runningSum = (arr)=>{ let s=0; return arr.map(v=>(s+=v,s)); };
+function destroyChart(c){ if (c){ try{ c.destroy(); }catch{} } }
+function el(q){ const e=$(q); if(!e) throw new Error(`missing ${q}`); return e; }
+function lockBtn(btn, fn){
+  if (btn.__busy) return;
+  btn.__busy = true; btn.disabled = true;
+  Promise.resolve().then(fn).finally(()=>{ btn.__busy=false; btn.disabled=false; });
+}
+
+/* ===== AbortController: cancel pending fetch on logout ===== */
+let _ctrl = new AbortController();
+function resetController(){ try{_ctrl.abort()}catch{} _ctrl = new AbortController(); }
+
+/* ===== fetch wrapper (แสดงสปินเนอร์เฉพาะช้า) ===== */
+async function api(path, payload={}, useToken=true, withOverlay=true){
+  const body = { path, payload };
+  if (useToken && token) body.token = token;
+
+  // ดีเลย์ก่อนแสดง overlay 250ms
+  let overlayShown = false, timer = null;
+  if (withOverlay){
+    timer = setTimeout(()=>{ overlayShown = true; showOverlay(true); }, 250);
+  }
+
+  try{
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(body),
+      signal: _ctrl.signal
+    });
+    const text = await res.text();
+    let j; try{ j = JSON.parse(text); }catch{ toast('เซิร์ฟเวอร์ตอบไม่ใช่ JSON', false); return { ok:false, error:'NON_JSON', raw:text }; }
+    if (!j.ok && (j.error==='BAD_TOKEN' || j.error==='UNAUTHORIZED' || j.status===401)){
+      localStorage.removeItem('fin_token'); token=''; ensureLoginUI(); toast('เซสชันหมดอายุ โปรดเข้าสู่ระบบใหม่', false);
+    }
+    return j;
+  }catch(e){ 
+    if (e?.name === 'AbortError') return { ok:false, error:'ABORTED' };
+    toast(`เชื่อมต่อไม่ได้: ${e?.message||e}`, false); 
+    return { ok:false, error:'NETWORK_ERROR', message:String(e?.message||e) }; 
+  }
+  finally{ if (withOverlay){ clearTimeout(timer); if (overlayShown) showOverlay(false); } }
+}
+
+/* ===== LOGIN / LOGOUT / TABS ===== */
+function ensureLoginUI(){
+  if (token){
+    $('#loginBox').classList.add('hide');
+    $('#app').classList.remove('hide');
+    $('#who').textContent = displayName || localStorage.getItem('fin_user') || '';
+    $('#txDate').value = todayISO();
+    Promise.all([loadCategoriesAll(), loadDebts(false)]).then(()=>{ populateTypeTargets(); });
+    ensureRangeDefaults(); refreshDash(true,false);
+  } else {
+    $('#app').classList.add('hide'); $('#loginBox').classList.remove('hide'); $('#inpUser').focus();
+  }
+}
+$('#btnLogin').addEventListener('click', ()=> lockBtn($('#btnLogin'), doLogin));
+$('#inpPin').addEventListener('keydown', (e)=>{ if (e.key==='Enter') doLogin(); });
+async function doLogin(){
+  const user_id = $('#inpUser').value.trim(); const pin = $('#inpPin').value.trim();
+  if (!user_id || !pin){ $('#loginMsg').textContent='กรอกให้ครบก่อนนะ'; toast('กรอกให้ครบก่อนนะ', false); return; }
+  $('#loginMsg').textContent='กำลังเข้าสู่ระบบ…';
+  const j = await api('auth/login', { user_id, pin }, false, true);
+  if (!j.ok){
+    const msg = (j.error==='USER_NOT_FOUND') ? 'ไม่พบบัญชีผู้ใช้' : (j.error==='BAD_PIN') ? 'รหัสผ่านผิด' : (j.message||'เข้าสู่ระบบไม่สำเร็จ');
+    $('#loginMsg').textContent = msg; toast(`เข้าสู่ระบบล้มเหลว: ${msg}`, false); return;
+  }
+  token = j.token; displayName = j.display_name || user_id;
+  localStorage.setItem('fin_token', token); localStorage.setItem('fin_user', user_id); localStorage.setItem('fin_name', displayName);
+  $('#loginMsg').textContent = ''; toast('ยินดีต้อนรับ 😊'); ensureLoginUI();
+}
+$('#btnLogout').addEventListener('click', ()=>{
+  resetController(); // ยกเลิก request ค้าง
+  localStorage.removeItem('fin_token'); localStorage.removeItem('fin_name'); localStorage.removeItem('fin_user');
+  token=''; displayName=''; $('#inpUser').value=''; $('#inpPin').value=''; $('#loginMsg').textContent=''; ensureLoginUI();
+});
+function switchTab(name){
+  $$('.tabbtn[role="tab"]').forEach(b=>{ const on=(b.dataset.tab===name); b.classList.toggle('active', on); b.setAttribute('aria-selected', on?'true':'false'); });
+  $$('.section').forEach(s=> s.classList.toggle('active', s.id==='tab-'+name));
+  if (name==='dash'){ ensureRangeDefaults(); refreshDash(true,false); }
+  if (name==='list'){ refreshDash(true,false); }
+  if (name==='debt'){ loadDebts(false); }
+}
+// ผูกเฉพาะปุ่มแท็บจริง ๆ (ไม่รวม select ที่ใช้คลาส tabbtn)
+$$('.tabbtn[role="tab"]').forEach(b=> b.addEventListener('click', ()=> switchTab(b.dataset.tab)));
+
+/* ===== CATEGORIES ===== */
+let cats = { income:[], expense:[], saving:[] };
+function _isWithdrawIncomeName(name){ const s = String(name||''); return /ถอน.*ออม|ออม.*ถอน|ถอนออม|ถอนเงินออม|withdraw.*(save|saving)|saving.*withdraw/i.test(s); }
+async function loadCategoriesAll(){
+  for (const t of ['income','expense','saving']){
+    const r = await api('categories/list', { type:t }, true, true);
+    cats[t] = r.ok && Array.isArray(r.items) ? r.items : [];
+  }
+  withdrawIncomeIds = new Set((cats.income||[]).filter(c=> _isWithdrawIncomeName(c.name_th)).map(c=> String(c.category_id)));
+  // หมวด "จ่ายหนี้" (ตัดออกจากรายจ่าย)
+  debtPayCatIds = new Set((cats.expense||[]).filter(c => /จ่ายหนี้/.test(String(c.name_th||''))).map(c=> String(c.category_id)));
+}
+function populateCatSelect(){
+  const t = $('#txType').value; const sel = $('#txCat'); sel.innerHTML='';
+  (cats[t]||[]).forEach(c=>{ const o=document.createElement('option'); o.value=c.category_id; o.textContent=escs(c.name_th); sel.appendChild(o); });
+}
+
+/* ===== DEBTS ===== */
+async function loadDebts(withOverlay=true){
+  const r = await api('debts/list', {}, true, withOverlay);
+  debts = r.ok && Array.isArray(r.items) ? r.items : [];
+  renderDebtTable();
+  populateDebtSelect();
+  const sel = $('#debtFilter'); sel.innerHTML = `<option value="">เจ้าหนี้: ทั้งหมด</option>`;
+  for (const d of debts){ const o=document.createElement('option'); o.value=d.debt_id; o.textContent=escs(d.lender_name||'—'); sel.appendChild(o); }
+}
+function populateDebtSelect(){
+  const sel = $('#txDebt'); if (!sel) return;
+  sel.innerHTML='';
+  const active = (debts||[]).filter(d => String(d.is_active) !== 'false');
+  if (!active.length){ const o=document.createElement('option'); o.value=''; o.textContent='(ยังไม่มีเจ้าหนี้)'; sel.appendChild(o); return; }
+  for (const d of active){ const o=document.createElement('option'); o.value=d.debt_id; o.textContent=`${escs(d.lender_name)} • ${Number(d.annual_rate||0)}%`; sel.appendChild(o); }
+}
+function renderDebtTable(){
+  const tb = $('#tblDebt'); tb.innerHTML='';
+  const list = debts.slice().sort((a,b)=> String(a.lender_name||'').localeCompare(String(b.lender_name||''),'th'));
+  if (!list.length){ $('#emptyDebt').style.display='block'; return; }
+  $('#emptyDebt').style.display='none';
+  for (const d of list){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${escs(d.lender_name||'')}</td>
+      <td class="right">${fmt(Number(d.annual_rate||0))}</td>
+      <td class="right">${fmt(Number(d.principal_current||0))}</td>
+      <td class="right">${fmt(Number(d.accrued_interest||0))}</td>
+      <td>${String(d.is_active)!=='false'?'เปิดอยู่':'ปิดบัญชี'}</td>
+      <td>
+        <button class="btn-ghost" data-act="debt-edit" data-id="${escs(d.debt_id)}">แก้ไข</button>
+        <button class="btn-ghost" data-act="close" data-id="${escs(d.debt_id)}">ปิดบัญชี</button>
+      </td>`;
+    tr.dataset.row = JSON.stringify(d);
+    tb.appendChild(tr);
+  }
+}
+$('#tblDebt').addEventListener('click', async (e)=>{
+  const btnEdit = e.target.closest('button[data-act="debt-edit"]');
+  if (btnEdit){
+    const d = JSON.parse(btnEdit.closest('tr').dataset.row);
+    const body = `
+      <div class="row">
+        <div class="col"><label>ชื่อเจ้าหนี้</label><input id="edName" value="${escs(d.lender_name||'')}"></div>
+        <div class="col"><label>ดอกเบี้ย (% ต่อปี)</label><input id="edRate" type="number" step="0.01" value="${Number(d.annual_rate||0)}"></div>
+      </div>`;
+    openModal('แก้ไขเจ้าหนี้', body, async ()=>{
+      const lender_name = $('#edName').value.trim();
+      const annual_rate = Number($('#edRate').value);
+      if (!lender_name || !isFinite(annual_rate)){ toast('กรอกข้อมูลให้ถูกต้อง', false); return; }
+      const r = await api('debts/update', { debt_id: d.debt_id, lender_name, annual_rate }, true, true);
+      if (r.ok){ toast('อัปเดตแล้ว'); loadDebts(); drawDebtChart(); }
+      else toast(r.message||'อัปเดตไม่สำเร็จ', false);
+    });
+    return;
+  }
+  const btnClose = e.target.closest('button[data-act="close"]');
+  if (btnClose){
+    const id = btnClose.getAttribute('data-id');
+    const r = await api('debts/close', { debt_id:id }, true, true);
+    if (r.ok){ toast('ปิดบัญชีแล้ว'); loadDebts(); drawDebtChart(); } else { toast(r.message||'ทำรายการไม่สำเร็จ', false); }
+  }
+});
+$('#btnDebtAdd').addEventListener('click', ()=> lockBtn($('#btnDebtAdd'), async ()=>{
+  const lender_name = $('#debtName').value.trim();
+  const annual_rate = Number($('#debtAPR').value);
+  const principal_initial = Number($('#debtPrincipal').value||0);
+  const start_date = $('#debtStart').value || todayISO();
+  if (!lender_name || !(isFinite(annual_rate) && annual_rate>=0)){ toast('กรอกชื่อและอัตราดอกให้ถูกต้อง', false); return; }
+  const r = await api('debts/create', { lender_name, annual_rate, principal_initial: isFinite(principal_initial)?Math.max(0,Math.round(principal_initial*100)/100):0, start_date }, true, true);
+  if (r.ok){ toast('เพิ่มเจ้าหนี้สำเร็จ'); $('#debtName').value=''; $('#debtAPR').value=''; $('#debtPrincipal').value=''; $('#debtStart').value=''; loadDebts(); drawDebtChart(); }
+  else toast(r.message||'เพิ่มไม่สำเร็จ', false);
+}));
+
+/* ===== ADD TRANSACTION / DEBT OPS ===== */
+function populateTypeTargets(){
+  const t = $('#txType').value;
+  const useDebt = (t==='debt_pay' || t==='debt_borrow');
+  $('#colDebt').style.display = useDebt ? '' : 'none';
+  $('#colCat').style.display  = useDebt ? 'none' : '';
+  if (useDebt) populateDebtSelect(); else populateCatSelect();
+}
+$('#txType').addEventListener('change', populateTypeTargets);
+
+function normalizeAmount(v){ const n=Number(v); if (!isFinite(n) || n<=0) return NaN; return Math.round(n*100)/100; }
+$('#btnSave').addEventListener('click', ()=> lockBtn($('#btnSave'), ()=> saveTx($('#keepSwitch').checked)));
+$('#tab-add').addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); saveTx($('#keepSwitch').checked); } });
+
+async function saveTx(keep=false){
+  const type = $('#txType').value;
+  const date = $('#txDate').value;
+  const amt  = normalizeAmount($('#txAmount').value);
+  const note = $('#txNote').value.trim();
+
+  if (!date){ $('#txMsg').textContent='กรุณาเลือกวันที่'; toast('กรุณาเลือกวันที่', false); return; }
+  if (isNaN(amt)){ $('#txMsg').textContent='จำนวนเงินไม่ถูกต้อง'; toast('จำนวนเงินไม่ถูกต้อง', false); return; }
+
+  let r;
+  if (type==='debt_pay'){
+    const debt_id = $('#txDebt').value;
+    if (!debt_id){ toast('ยังไม่มีเจ้าหนี้', false); return; }
+    r = await api('debts/repay', { debt_id, date, amount: amt, note }, true, true);
+    if (r.ok){
+      const ip = fmt(Number(r.interest_paid||0)), pp = fmt(Number(r.principal_paid||0)), ex = Number(r.overpay||0);
+      toast(`จ่ายหนี้สำเร็จ • ดอก ${ip} • ต้น ${pp}` + (ex>0?` • ส่วนเกิน ${fmt(ex)}`:''));
+      if (!keep){ $('#txType').value='expense'; $('#txDate').value=todayISO(); populateTypeTargets(); }
+      $('#txAmount').value=''; $('#txNote').value='';
+      await Promise.all([refreshDash(true), loadDebts()]);
+      $('#txAmount').focus();
+      return;
+    } else {
+      toast(r.message||r.error||'จ่ายหนี้ไม่สำเร็จ', false);
+      return;
+    }
+  } else if (type==='debt_borrow'){
+    const debt_id = $('#txDebt').value;
+    if (!debt_id){ toast('ยังไม่มีเจ้าหนี้', false); return; }
+    r = await api('debts/borrow', { debt_id, date, amount: amt, note }, true, true);
+    if (r.ok){
+      toast('กู้หนี้สำเร็จ • เงินต้นเพิ่ม');
+      if (!keep){ $('#txType').value='expense'; $('#txDate').value=todayISO(); populateTypeTargets(); }
+      $('#txAmount').value=''; $('#txNote').value='';
+      await Promise.all([refreshDash(true), loadDebts()]);
+      $('#txAmount').focus();
+      return;
+    } else { toast(r.message||r.error||'กู้หนี้ไม่สำเร็จ', false); return; }
+  } else {
+    // ปกติ (income/expense/saving)
+    const category_id = $('#txCat').value;
+    if (!category_id){ $('#txMsg').textContent='กรุณาเลือกหมวด'; toast('กรุณาเลือกหมวด', false); return; }
+    r = await api('transactions/create', { date, type, category_id, amount: amt, note }, true, true);
+    if (r.ok){
+      $('#txMsg').textContent='บันทึกแล้ว'; toast('บันทึกสำเร็จ ✅');
+      $('#txAmount').value=''; $('#txNote').value='';
+      if (!keep){ $('#txType').value='expense'; $('#txDate').value = todayISO(); populateTypeTargets(); }
+      refreshDash(true); $('#txAmount').focus();
+    } else {
+      const msg = r.message || r.error || 'บันทึกไม่สำเร็จ';
+      $('#txMsg').textContent='ไม่สำเร็จ'; toast(`บันทึกล้มเหลว: ${msg}`, false);
+    }
+  }
+}
+
+/* ===== DASHBOARD ===== */
+function ensureRangeDefaults(){
+  if (!$('#fFrom').value || !$('#fTo').value){
+    const mb=monthBoundsOf(new Date()); $('#fFrom').value=mb.start; $('#fTo').value=mb.end;
+  }
+  updateRangeUI();
+}
+function updateRangeUI(){
+  const f=$('#fFrom').value, t=$('#fTo').value;
+  const today=todayISO(), mb=monthBoundsOf(new Date());
+  let txt='กำหนดเอง'; const isToday=(f===today && t===today); const isMonth=(f===mb.start && t===mb.end);
+  if (isToday) txt='วันนี้'; else if (isMonth) txt='เดือนนี้';
+  $('#rangeBadge').textContent=txt;
+  $('#btnToday').classList.toggle('active', isToday);
+  $('#btnMonth').classList.toggle('active', isMonth);
+}
+$('#btnToday').addEventListener('click', ()=>{ const d=todayISO(); $('#fFrom').value=d; $('#fTo').value=d; updateRangeUI(); refreshDash(); });
+$('#btnMonth').addEventListener('click', ()=>{ const mb=monthBoundsOf(new Date()); $('#fFrom').value=mb.start; $('#fTo').value=mb.end; updateRangeUI(); refreshDash(); });
+$('#btnRangeRefresh').addEventListener('click', ()=> refreshDash());
+$('#fFrom').addEventListener('change', ()=> updateRangeUI());
+$('#fTo').addEventListener('change',   ()=> updateRangeUI());
+$('#btnRefresh').addEventListener('click', ()=> refreshDash());
+
+function setKpi(inc, exp, savNet, debtPay){
+  const net = inc - exp - debtPay - savNet;
+  $('#sumIncome').textContent = fmt(inc);
+  $('#sumExpense').textContent = fmt(exp);
+  $('#sumDebtPay').textContent = fmt(debtPay);
+  $('#sumSaving').textContent  = fmt(savNet);
+  $('#sumNet').textContent     = fmt(net);
+}
+
+async function refreshDash(silent=false, withOverlay=true){
+  if (!token){ if(!silent) toast('กรุณาเข้าสู่ระบบก่อน', false); return; }
+  const from=$('#fFrom').value, to=$('#fTo').value;
+
+  const tr = await api('transactions/list', { from, to, type:'all' }, true, withOverlay);
+  if (!tr.ok){ if(!silent) toast('โหลดข้อมูลไม่สำเร็จ', false); return; }
+  const rawItems = Array.isArray(tr.items) ? tr.items : [];
+  const items = rawItems.map(x=> ({...x, amount:+x.amount}));
+  lastItems = items.slice();
+
+  withdrawIncomeIds = new Set();
+  for (const it of items){ if (it.type==='income' && _isWithdrawIncomeName(it.category_name)){ withdrawIncomeIds.add(String(it.category_id)); } }
+
+  const inc      = sum(items, x=> x.type==='income'  ? x.amount : 0);
+  const debtPay  = sum(items, x=> x.type==='expense' && debtPayCatIds.has(String(x.category_id)) ? x.amount : 0);
+  const exp      = sum(items, x=> x.type==='expense' && !debtPayCatIds.has(String(x.category_id)) ? x.amount : 0);
+  const savDep   = sum(items, x=> x.type==='saving'  ? x.amount : 0);
+  const savWd    = sum(items, x=> x.type==='income' && withdrawIncomeIds.has(String(x.category_id)) ? x.amount : 0);
+  const savNet   = savDep - savWd;
+
+  setKpi(inc, exp, savNet, debtPay);
+
+  const mk = monthKeyFromRange(from, to);
+  await loadAndShowBudgetGoal(mk, exp, savNet, withOverlay);
+
+  drawExpByCat(items);
+  drawFlow(items);
+  drawSavingCum(items);
+  renderTable(items);
+
+  await drawDebtChart();
+}
+
+function monthKeyFromRange(f, t){
+  if (f && t){
+    const fd = new Date(f), td=new Date(t);
+    if (fd.getFullYear()===td.getFullYear() && fd.getMonth()===td.getMonth()) return yyyyMmOf(fd);
+  }
+  const now=new Date(); return yyyyMmOf(now);
+}
+
+async function loadAndShowBudgetGoal(yyyyMm, expenseTotal, savingNet, withOverlay=true){
+  const list = await api('budgets/list', { month: yyyyMm }, true, withOverlay);
+  let budget=0, goal=0;
+  if (list.ok && Array.isArray(list.items)){
+    for (const it of list.items){
+      if (String(it.category_id)===BUD_CAT_OVERALL) budget=Number(it.limit_amount||0);
+      if (String(it.category_id)===BUD_CAT_SAVE_GOAL) goal=Number(it.limit_amount||0);
+    }
+  }
+  $('#inpBudget').value = budget>0 ? budget : '';
+  $('#inpSavingGoal').value = goal>0 ? goal : '';
+
+  const b = Number(budget||0);
+  const g = Number(goal||0);
+
+  const pctB = (!b || b<=0) ? 0 : Math.round((expenseTotal/b)*100);
+  $('#budgetBar').style.width = (b>0 ? Math.min(pctB,100) : 0) + '%';
+  $('#budgetHint').textContent = b>0
+    ? (expenseTotal>b ? `เกินงบ ${fmt(expenseTotal-b)} บาท` : `เหลืองบ ${fmt(b-expenseTotal)} บาท`)
+    : 'ยังไม่ได้ตั้งงบ';
+
+  const savingClamped = Math.max(0, savingNet);
+  const pctG = (!g || g<=0) ? 0 : Math.round((savingClamped/g)*100);
+  $('#savingBar').style.width = (g>0 ? Math.min(pctG,100) : 0) + '%';
+  $('#savingHint').textContent = g>0
+    ? (savingNet>=g ? `ถึงเป้าแล้ว (+${fmt(savingNet-g)})` : `ขาดอีก ${fmt(g-savingNet)} บาท`)
+    : 'ยังไม่ได้ตั้งเป้า';
+
+  $('#btnSaveBudget').onclick = ()=> lockBtn($('#btnSaveBudget'), async ()=>{
+    const vBudget = Number($('#inpBudget').value||0);
+    const vGoal   = Number($('#inpSavingGoal').value||0);
+    let ok1=true, ok2=true;
+    if (isFinite(vBudget) && vBudget>=0){
+      ok1 = (await api('budgets/upsert', { month: yyyyMm, category_id: BUD_CAT_OVERALL,   limit_amount: vBudget }, true, true)).ok;
+    }
+    if (isFinite(vGoal) && vGoal>=0){
+      ok2 = (await api('budgets/upsert', { month: yyyyMm, category_id: BUD_CAT_SAVE_GOAL, limit_amount: vGoal   }, true, true)).ok;
+    }
+    if (ok1 && ok2) { toast('บันทึกงบ/เป้าเรียบร้อย'); refreshDash(true); }
+    else toast('บันทึกงบ/เป้าไม่สำเร็จ', false);
+  });
+}
+
+function drawExpByCat(items){
+  const panelNo=$('#noDataExp'); destroyChart(chartExp);
+  const exps=items.filter(x=> x.type==='expense' && !debtPayCatIds.has(String(x.category_id)));
+  if (!exps.length){ panelNo.classList.remove('hide'); chartExp=null; return; }
+  panelNo.classList.add('hide');
+  const buckets=groupBy(exps, x=> x.category_name || 'อื่น ๆ');
+  const labels=Object.keys(buckets);
+  const data=labels.map(k=> sum(buckets[k], x=> x.amount));
+  chartExp=new Chart(el('#chartExp'),{
+    type:'bar',
+    data:{ labels, datasets:[{ label:'จำนวน (บาท)', data, backgroundColor:'rgba(233,30,99,0.65)', borderColor:'rgba(233,30,99,1)', borderWidth:1 }] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, scales:{ y:{ beginAtZero:true }}, plugins:{ legend:{ display:false } } }
+  });
+}
+function drawFlow(items){
+  const panelNo=$('#noDataFlow'); destroyChart(chartFlow);
+  if (!items.length){ panelNo.classList.remove('hide'); chartFlow=null; return; }
+  panelNo.classList.add('hide');
+
+  const g=groupBy(items, x=> x.date);
+  const ds=Object.keys(g).sort();
+
+  const income = ds.map(d=> sum(g[d], x=> x.type==='income'? x.amount:0));
+  const expenseNoDebt = ds.map(d=> sum(g[d], x=> x.type==='expense' && !debtPayCatIds.has(String(x.category_id)) ? x.amount:0));
+  const debtPay = ds.map(d=> sum(g[d], x=> x.type==='expense' &&  debtPayCatIds.has(String(x.category_id)) ? x.amount:0));
+  const saving = ds.map(d=> sum(g[d], x=> x.type==='saving'? x.amount:0));
+
+  const netDaily = ds.map((_,i)=> income[i] - expenseNoDebt[i] - debtPay[i] - saving[i]);
+  const netCum   = runningSum(netDaily);
+
+  chartFlow=new Chart(el('#chartFlow'),{
+    type:'line',
+    data:{ labels:ds,
+      datasets:[
+        { label:'รายรับ', data:income, borderColor:'#00c896', backgroundColor:'rgba(0,200,150,.15)', tension:.35, fill:false },
+        { label:'รายจ่าย', data:expenseNoDebt, borderColor:'#ff4d4f', backgroundColor:'rgba(255,77,79,.15)', tension:.35, fill:false },
+        { label:'จ่ายหนี้', data:debtPay, borderColor:'#e91e63', backgroundColor:'rgba(233,30,99,.12)', tension:.35, fill:false },
+        { label:'คงเหลือสะสม', data:netCum, borderColor:'#6c8cff', backgroundColor:'rgba(108,140,255,.15)', tension:.35, fill:false }
+      ]},
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, interaction:{ mode:'index', intersect:false }, scales:{ y:{ beginAtZero:true } } }
+  });
+}
+function drawSavingCum(items){
+  const panelNo=$('#noDataSav'); destroyChart(chartSavCum);
+  const depBy=groupBy(items.filter(x=>x.type==='saving'), x=> x.date);
+  const wdrBy=groupBy(items.filter(x=> x.type==='income' && withdrawIncomeIds.has(String(x.category_id))), x=> x.date);
+  const dates=Array.from(new Set([...Object.keys(depBy), ...Object.keys(wdrBy)])).sort();
+  if (!dates.length){ panelNo.classList.remove('hide'); chartSavCum=null; return; }
+  panelNo.classList.add('hide');
+  const netPerDay=dates.map(d=> (sum(depBy[d]||[], x=>x.amount) - sum(wdrBy[d]||[], x=>x.amount)));
+  const cum=runningSum(netPerDay);
+  chartSavCum=new Chart(el('#chartSavCum'),{
+    type:'line',
+    data:{ labels:dates, datasets:[{ label:'ออมสุทธิสะสม', data:cum, borderColor:'#2dd4bf', backgroundColor:'rgba(45,212,191,.15)', tension:.35, fill:false }] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, scales:{ y:{ beginAtZero:true } } }
+  });
+}
+
+/* ===== Debt charts: snapshot vs history ===== */
+$('#debtViewMode').addEventListener('change', ()=>{ debtChartMode = $('#debtViewMode').value; drawDebtChart(); });
+$('#debtFilter').addEventListener('change', ()=> drawDebtChart());
+
+async function drawDebtChart(){
+  destroyChart(chartDebt);
+  if (debtChartMode === 'snapshot') {
+    $('#debtForecast').style.display = 'none';
+    return drawDebtChartCurrent();
+  }
+  return drawDebtHistory();
+}
+
+async function drawDebtChartCurrent(){
+  const r = await api('debts/summary', {}, true, true);
+  if (!r.ok || !Array.isArray(r.items) || r.items.length===0){ $('#noDebt').classList.remove('hide'); return; }
+  $('#noDebt').classList.add('hide');
+
+  // เติม dropdown เจ้าหนี้จากสรุป
+  const sel = $('#debtFilter'); const seen = new Set(); sel.innerHTML = `<option value="">เจ้าหนี้: ทั้งหมด</option>`;
+  for (const it of r.items){ if (!seen.has(it.debt_id)){ seen.add(it.debt_id);
+    const o=document.createElement('option'); o.value=it.debt_id; o.textContent=escs(it.lender_name||'—'); sel.appendChild(o); } }
+
+  const labels = r.items.map(x=> escs(x.lender_name || '—'));
+  const totals = r.items.map(x=> Number(x.total_due||0));
+  chartDebt = new Chart(el('#chartDebt'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'ยอดคงเหลือรวม (บาท)', data:totals, backgroundColor:'rgba(233,30,99,.55)', borderColor:'rgba(233,30,99,1)', borderWidth:1 }] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, scales:{ y:{ beginAtZero:true } }, plugins:{ legend:{display:false} } }
+  });
+}
+
+async function drawDebtHistory(){
+  const debt_id = $('#debtFilter').value || null;
+  const rTx = await api('debts/tx/list', { debt_id }, true, true);
+  if (!rTx.ok){
+    $('#noDebt').classList.remove('hide');
+    $('#debtForecast').style.display='block';
+    $('#debtForecast').textContent='ต้องอัปเดต API debts/tx/list ให้ส่ง interest_paid/principal_paid เพื่อใช้กราฟประวัติ';
+    return;
+  }
+  const items = Array.isArray(rTx.items) ? rTx.items : [];
+  if (!items.length){ $('#noDebt').classList.remove('hide'); return; }
+  $('#noDebt').classList.add('hide');
+
+  const byDate = groupBy(items, x=> String(x.date).slice(0,10));
+  const dates = Object.keys(byDate).sort();
+  const interestPaid = dates.map(d=> sum(byDate[d].filter(x=>x.type==='repay'), x=> Number(x.interest_paid||0)));
+  const principalPaid= dates.map(d=> sum(byDate[d].filter(x=>x.type==='repay'), x=> Number(x.principal_paid||0)));
+
+  chartDebt = new Chart(el('#chartDebt'), {
+    type:'line',
+    data:{ labels:dates, datasets:[
+      { label:'จ่ายดอกเบี้ย', data:interestPaid, borderColor:'#ffb020', backgroundColor:'rgba(255,176,32,.12)', tension:.35, fill:false },
+      { label:'จ่ายเงินต้น',   data:principalPaid, borderColor:'#00c896', backgroundColor:'rgba(0,200,150,.12)', tension:.35, fill:false }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:'index',intersect:false}, scales:{ y:{ beginAtZero:true } } }
+  });
+
+  // คาดการณ์วันหมดหนี้จากอัตราจ่ายเงินต้นเฉลี่ย 90 วัน
+  const sinceDays = 90;
+  const cut = new Date(); cut.setDate(cut.getDate() - sinceDays);
+  const recent = [];
+  dates.forEach((d,i)=>{ if (new Date(d) >= cut) recent.push(principalPaid[i]); });
+  const avgPrincipalPerDay = recent.length ? (recent.reduce((a,b)=>a+b,0) / recent.length) : 0;
+
+  const rSum = await api('debts/summary', {}, true, true);
+  let forecastBox = $('#debtForecast'); forecastBox.style.display='block';
+  if (!rSum.ok){ forecastBox.textContent='—'; return; }
+  const principalRemain = Number(rSum.totals?.principal || 0);
+  if (avgPrincipalPerDay > 0 && principalRemain > 0){
+    const days = Math.ceil(principalRemain / avgPrincipalPerDay);
+    const eta = new Date(); eta.setDate(eta.getDate()+days);
+    forecastBox.textContent = `คาดว่าจะหมดหนี้ใน ~ ${days.toLocaleString('th-TH')} วัน (≈ ${eta.toISOString().slice(0,10)}) จากอัตราจ่ายเงินต้นเฉลี่ย ${fmt(avgPrincipalPerDay)} บาท/วัน (ย้อนหลัง ${sinceDays} วัน)`;
+  } else {
+    forecastBox.textContent = 'ยังประเมินวันหมดหนี้ไม่ได้ (ไม่มีการจ่ายเงินต้นในช่วงหลัง)';
+  }
+}
+
+/* ===== LIST (แก้ไขรายการ) ===== */
+function safeKey(x){ return `${(x.date||'').slice(0,10)}T${(x.time||'00:00:00').slice(0,8)}`; }
+function renderTable(items){
+  const tb = $('#tblBody'); tb.innerHTML='';
+  const sorted = items.slice().sort((a,b)=> safeKey(b).localeCompare(safeKey(a)));
+  if (!sorted.length){ $('#emptyList').style.display='block'; return; }
+  $('#emptyList').style.display='none';
+  for (const x of sorted){
+    const isWithdrawIncome = (x.type==='income' && withdrawIncomeIds.has(String(x.category_id)));
+    const isDebtPay = (x.type==='expense' && debtPayCatIds.has(String(x.category_id)));
+    const typeTxt = x.type==='income'?(isWithdrawIncome?'รายรับ (ถอนออม)':'รายรับ'):(x.type==='saving'?'ออมเงิน':(isDebtPay?'จ่ายหนี้':'รายจ่าย'));
+    const badge = x.type==='income'
+      ? (isWithdrawIncome
+          ? 'background:rgba(45,212,191,.16);color:#a7fff0;border:1px solid rgba(45,212,191,.35);'
+          : 'background:rgba(0,200,150,.18);color:#9ff3df;border:1px solid rgba(0,200,150,.35);')
+      : (x.type==='saving'
+          ? 'background:rgba(45,212,191,.16);color:#a7fff0;border:1px solid rgba(45,212,191,.35);'
+          : (isDebtPay
+              ? 'background:rgba(233,30,99,.18);color:#ffd1df;border:1px solid rgba(233,30,99,.35);'
+              : 'background:rgba(233,30,99,.15);color:#ffb6cc;border:1px solid rgba(233,30,99,.35);'));
+    const tr = document.createElement('tr');
+    const disEdit = (x.category_name==='จ่ายหนี้' || x.category_name==='กู้หนี้');
+    tr.innerHTML = `
+      <td title="${escs((x.date||'').slice(0,10))}">${escs((x.date||'').slice(0,10))}</td>
+      <td><span style="padding:.25rem .5rem;border-radius:999px;font-size:.85rem;${badge}">${typeTxt}</span></td>
+      <td>${escs(x.category_name || x.category_id)}</td>
+      <td class="right">${fmt(x.amount)}</td>
+      <td>${escs(x.note)}</td>
+      <td><button class="btn-ghost" data-act="tx-edit" data-id="${escs(x.tx_id)}" ${disEdit?'disabled title="รายการสะท้อนจากโมดูลหนี้ แก้ไขที่นี่อาจทำให้ไม่ตรงกัน"':''}>แก้ไข</button></td>`;
+    tr.dataset.row = JSON.stringify(x);
+    tb.appendChild(tr);
+  }
+}
+function openModal(title, bodyHtml, onSave){
+  $('#modalTitle').textContent = title;
+  $('#modalBody').innerHTML = bodyHtml;
+  $('#modal').classList.remove('hide');
+  document.body.style.overflow='hidden';
+  const onEsc = (e)=>{ if(e.key==='Escape'){ cleanup(); } };
+  document.addEventListener('keydown', onEsc);
+
+  const cleanup = ()=>{
+    $('#btnModalSave').onclick=null; $('#btnModalCancel').onclick=null;
+    document.removeEventListener('keydown', onEsc);
+    document.body.style.overflow='';
+    $('#modal').classList.add('hide');
+  };
+  $('#btnModalCancel').onclick = cleanup;
+  $('#btnModalSave').onclick = ()=> lockBtn($('#btnModalSave'), async ()=>{ await onSave(); cleanup(); });
+}
+
+/* ===== INIT ===== */
+function init(){
+  $('#txDate').value = todayISO();
+  ensureLoginUI();
+  populateTypeTargets();
+}
+init();
+</script>
+</body>
+</html>
